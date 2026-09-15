@@ -1,19 +1,14 @@
-import JobForm from "@/components/JobForm";
+import { getAllJobs } from "@/lib/jobs";
+import ApplicationsView from "@/components/ApplicationsView";
 
-export default function NewJobPage() {
+export const dynamic = "force-dynamic";
+
+export default async function JobsPage() {
+  const jobs = await getAllJobs();
+
   return (
-    <main className="min-h-screen bg-gray-100 p-10">
-      <div className="mx-auto max-w-2xl">
-        <h1 className="text-3xl font-bold">
-          Add Application
-        </h1>
-
-        <p className="mt-2 text-gray-600">
-          Add a new internship or job application.
-        </p>
-
-        <JobForm />
-      </div>
+    <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+      <ApplicationsView initialJobs={jobs} />
     </main>
   );
 }
