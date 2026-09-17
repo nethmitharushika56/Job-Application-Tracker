@@ -403,7 +403,7 @@ export default function DashboardView({ initialJobs }: DashboardViewProps) {
         </div>
 
         <p className="text-slate-400">
-          CareerPulse • White, Orange & Green Career Tracker
+          © {new Date().getFullYear()} CareerPulse. All rights reserved.
         </p>
       </div>
 
