@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "company": "Heyleys",
+    "position": "Software Engineer Intern",
+    "status": "Applied",
+    "jobType": "Full-time",
+    "workplaceType": "On-site",
+    "location": "Colombo",
+    "salary": "",
+    "appliedDate": "2026-09-17",
+    "followUpDate": "",
+    "interviewDate": "",
+    "jobUrl": "",
+    "contactName": "",
+    "contactEmail": "",
+    "notes": "",
+    "priority": "High",
+    "id": "job-1789643175612-vu95l",
+    "createdAt": "2026-09-17T11:06:15.611Z",
+    "updatedAt": "2026-09-17T11:06:15.611Z"
+  }
+]
