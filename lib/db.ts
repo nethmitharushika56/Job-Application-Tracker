@@ -2,14 +2,24 @@ import { Pool } from "pg";
 
 const globalForPg = globalThis as unknown as {
     pgPool: Pool | undefined;
+    pgUrl: string | undefined;
 };
 
-export const pool =
-    globalForPg.pgPool ??
-    new Pool({
-        connectionString: process.env.DATABASE_URL,
-    });
+const isSupabase =
+    process.env.DATABASE_URL?.includes("supabase.co") ||
+    process.env.DATABASE_URL?.includes("supabase.com") ||
+    process.env.DATABASE_URL?.includes("pooler");
 
-if (process.env.NODE_ENV !== "production") {
-    globalForPg.pgPool = pool;
+if (!globalForPg.pgPool || globalForPg.pgUrl !== process.env.DATABASE_URL) {
+    if (globalForPg.pgPool) {
+        globalForPg.pgPool.end().catch(() => {});
+    }
+    globalForPg.pgPool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: isSupabase ? { rejectUnauthorized: false } : undefined,
+    });
+    globalForPg.pgUrl = process.env.DATABASE_URL;
 }
+
+export const pool = globalForPg.pgPool;
+

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { ToastProvider } from "@/components/Toast";
+import { AuthProvider } from "@/components/AuthContext";
 
 export const metadata: Metadata = {
   title: "CareerPulse | Job Application Tracker",
@@ -16,12 +17,14 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased selection:bg-orange-500/20 selection:text-orange-950">
-        <ToastProvider>
-          <div className="min-h-screen flex flex-col">
-            <Navbar />
-            <div className="flex-1">{children}</div>
-          </div>
-        </ToastProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <div className="min-h-screen flex flex-col">
+              <Navbar />
+              <div className="flex-1">{children}</div>
+            </div>
+          </ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   );

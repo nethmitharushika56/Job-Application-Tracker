@@ -17,7 +17,6 @@ import {
   PlusCircle,
   Kanban,
   Download,
-  RotateCcw,
   Sparkles,
   Building2,
 } from "lucide-react";
@@ -115,26 +114,6 @@ export default function DashboardView({ initialJobs }: DashboardViewProps) {
     } catch (err) {
       console.error(err);
       showToast("Failed to delete application", "error");
-    }
-  };
-
-  const handleResetDemoData = async () => {
-    if (window.confirm("Reset all applications to the default sample dataset?")) {
-      try {
-        const res = await fetch("/api/jobs", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "reset" }),
-        });
-        if (res.ok) {
-          const reset = await res.json();
-          setJobs(reset);
-          showToast("Applications reset to sample demo data", "success");
-        }
-      } catch (err) {
-        console.error(err);
-        showToast("Failed to reset demo data", "error");
-      }
     }
   };
 
@@ -420,14 +399,6 @@ export default function DashboardView({ initialJobs }: DashboardViewProps) {
           >
             <Download className="w-4 h-4 text-emerald-600" />
             <span>Export to CSV</span>
-          </button>
-
-          <button
-            onClick={handleResetDemoData}
-            className="flex items-center gap-1.5 hover:text-slate-900 font-medium transition-colors"
-          >
-            <RotateCcw className="w-4 h-4 text-orange-600" />
-            <span>Reset Demo Data</span>
           </button>
         </div>
 

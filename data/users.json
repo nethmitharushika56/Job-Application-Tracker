@@ -1,0 +1,18 @@
+[
+  {
+    "id": "user-1789646970142-tyniq",
+    "name": "Alex Rivera",
+    "email": "alex.rivera@example.com",
+    "passwordHash": "4293d18d32b8104fe7c646aa5336be58:46c2496e7afb5b266fff747c236960c4fa1cd163f8d19b30a2b9239b90dc47a0cab38d18de8e7410be3a3b76aa96194503b0bf9493869a845163f80c9a5a1eaf",
+    "createdAt": "2026-09-17T12:09:30.142Z",
+    "updatedAt": "2026-09-17T12:09:30.142Z"
+  },
+  {
+    "id": "user-1789647085272-6flvh",
+    "name": "Nethmi Tharushika",
+    "email": "gamagetharushy@gmail.com",
+    "passwordHash": "7f99e642ce40256610367a097e96c3a7:209ac999327ebf077230eb0c665125da66a75ae8970ed58cc7dfb8bf70c499e209845d3dd80327dbf991b8728dc3c39179f170bafd52e959b6248e66dce23a8f",
+    "createdAt": "2026-09-17T12:11:25.272Z",
+    "updatedAt": "2026-09-17T12:11:25.272Z"
+  }
+]
