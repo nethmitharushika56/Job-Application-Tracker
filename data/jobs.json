@@ -1,1 +1,23 @@
-[]
+[
+  {
+    "company": "Anthropic",
+    "position": "Research Engineer",
+    "status": "Applied",
+    "jobType": "Full-time",
+    "workplaceType": "Remote",
+    "location": "San Francisco, CA",
+    "salary": "",
+    "appliedDate": "2026-09-17",
+    "followUpDate": "",
+    "interviewDate": "",
+    "jobUrl": "",
+    "contactName": "",
+    "contactEmail": "",
+    "notes": "",
+    "priority": "High",
+    "userId": "user-1789646970142-tyniq",
+    "id": "job-1789650875713-b9z5t",
+    "createdAt": "2026-09-17T13:14:35.713Z",
+    "updatedAt": "2026-09-17T13:14:35.713Z"
+  }
+]

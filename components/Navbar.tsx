@@ -17,6 +17,8 @@ export default function Navbar() {
   const pathname = usePathname();
   const { user, loading, logout } = useAuth();
 
+  const isAuthPage = pathname === "/login" || pathname === "/signup";
+
   const navItems = [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
     { label: "Applications", href: "/jobs", icon: ListTodo },
@@ -50,45 +52,51 @@ export default function Navbar() {
             </div>
           </Link>
 
-          <div className="hidden md:flex items-center gap-1.5">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive =
-                item.href === "/"
-                  ? pathname === "/"
-                  : pathname.startsWith(item.href);
+          {/* Navigation Links - Hidden on Login & Sign Up pages */}
+          {!isAuthPage && (
+            <div className="hidden md:flex items-center gap-1.5">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive =
+                  item.href === "/"
+                    ? pathname === "/"
+                    : pathname.startsWith(item.href);
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all ${
-                    isActive
-                      ? "bg-orange-50 text-orange-700 border border-orange-200/80 font-semibold shadow-xs"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 ${isActive ? "text-orange-600" : "text-slate-500"}`} />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-sm font-medium transition-all ${
+                      isActive
+                        ? "bg-orange-50 text-orange-700 border border-orange-200/80 font-semibold shadow-xs"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
+                    }`}
+                  >
+                    <Icon className={`w-4 h-4 ${isActive ? "text-orange-600" : "text-slate-500"}`} />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
-          <Link
-            href="/jobs/new"
-            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 px-3.5 py-2 text-sm font-semibold text-white shadow-md shadow-orange-500/25 active:scale-98 transition-all"
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span className="hidden sm:inline">Add Application</span>
-            <span className="sm:hidden">Add</span>
-          </Link>
+          {/* Add Application Button - Hidden on Login & Sign Up pages */}
+          {!isAuthPage && (
+            <Link
+              href="/jobs/new"
+              className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 px-3.5 py-2 text-sm font-semibold text-white shadow-md shadow-orange-500/25 active:scale-98 transition-all"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span className="hidden sm:inline">Add Application</span>
+              <span className="sm:hidden">Add</span>
+            </Link>
+          )}
 
           {/* Auth State in Navbar */}
           {!loading && (
-            <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+            <div className={`flex items-center gap-2 ${!isAuthPage ? "pl-2 border-l border-slate-200" : ""}`}>
               {user ? (
                 <div className="flex items-center gap-2.5">
                   <div
@@ -106,12 +114,30 @@ export default function Navbar() {
                   <button
                     onClick={() => logout()}
                     title="Sign Out"
-                    className="flex items-center gap-1.5 p-2 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all text-xs font-medium"
+                    className="flex items-center gap-1.5 p-2 rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-all text-xs font-medium cursor-pointer"
                   >
                     <LogOut className="w-4 h-4" />
                     <span className="hidden lg:inline">Sign Out</span>
                   </button>
                 </div>
+              ) : isAuthPage ? (
+                pathname === "/login" ? (
+                  <Link
+                    href="/signup"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-200 transition-all"
+                  >
+                    <UserIcon className="w-3.5 h-3.5" />
+                    <span>Create Account</span>
+                  </Link>
+                ) : (
+                  <Link
+                    href="/login"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-200 transition-all"
+                  >
+                    <LogIn className="w-3.5 h-3.5" />
+                    <span>Sign In</span>
+                  </Link>
+                )
               ) : (
                 <div className="flex items-center gap-1.5">
                   <Link

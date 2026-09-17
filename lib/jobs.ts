@@ -17,6 +17,7 @@ export type WorkplaceType = "Remote" | "Hybrid" | "On-site";
 
 export interface JobApplication {
   id: string;
+  userId?: string;
   company: string;
   position: string;
   status: JobStatus;
@@ -175,6 +176,7 @@ function rowToJob(row: any): JobApplication {
 
   return {
     id: String(row.id),
+    userId: row.user_id || undefined,
     company: row.company || "",
     position: row.position || "",
     status: (row.status as JobStatus) || "Applied",
@@ -199,12 +201,13 @@ async function insertJobIntoDb(job: JobApplication): Promise<void> {
   const appDate = job.appliedDate || new Date().toISOString().split("T")[0];
   await pool.query(
     `INSERT INTO jobs (
-      id, company, position, status, job_type, workplace_type,
+      id, user_id, company, position, status, job_type, workplace_type,
       location, salary, applied_date, application_date, follow_up_date, interview_date,
       job_url, contact_name, contact_email, priority, notes,
       created_at, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
     ON CONFLICT (id) DO UPDATE SET
+      user_id = COALESCE(EXCLUDED.user_id, jobs.user_id),
       company = EXCLUDED.company,
       position = EXCLUDED.position,
       status = EXCLUDED.status,
@@ -224,6 +227,7 @@ async function insertJobIntoDb(job: JobApplication): Promise<void> {
       updated_at = EXCLUDED.updated_at`,
     [
       job.id,
+      job.userId || null,
       job.company,
       job.position,
       job.status,
@@ -247,18 +251,29 @@ async function insertJobIntoDb(job: JobApplication): Promise<void> {
 }
 
 // Exported high-level CRUD functions
-export async function getAllJobs(): Promise<JobApplication[]> {
+export async function getAllJobs(userId?: string): Promise<JobApplication[]> {
   const isDbReady = await initDatabase();
   if (isDbReady) {
     try {
-      const result = await pool.query(`SELECT * FROM jobs ORDER BY created_at DESC`);
+      let query = `SELECT * FROM jobs`;
+      const params: any[] = [];
+      if (userId) {
+        query += ` WHERE user_id = $1 OR user_id IS NULL`;
+        params.push(userId);
+      }
+      query += ` ORDER BY created_at DESC`;
+      const result = await pool.query(query, params);
       return result.rows.map(rowToJob);
     } catch (err: any) {
       console.error("Error reading jobs from database:", err.message);
     }
   }
 
-  return getLocalJobs();
+  const localJobs = await getLocalJobs();
+  if (userId) {
+    return localJobs.filter((j) => !j.userId || j.userId === userId);
+  }
+  return localJobs;
 }
 
 export async function getJobById(id: string): Promise<JobApplication | null> {
@@ -280,11 +295,13 @@ export async function getJobById(id: string): Promise<JobApplication | null> {
 }
 
 export async function createJob(
-  jobData: Omit<JobApplication, "id" | "createdAt" | "updatedAt">
+  jobData: Omit<JobApplication, "id" | "createdAt" | "updatedAt">,
+  userId?: string
 ): Promise<JobApplication> {
   const now = new Date().toISOString();
   const newJob: JobApplication = {
     ...jobData,
+    userId,
     id: `job-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
     createdAt: now,
     updatedAt: now,

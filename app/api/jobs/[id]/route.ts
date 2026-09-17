@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import { getJobById, updateJob, deleteJob } from "@/lib/jobs";
 
 type RouteParams = {
@@ -10,6 +11,11 @@ export async function GET(
   context: RouteParams
 ) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized. Please sign in." }, { status: 401 });
+    }
+
     const { id } = await context.params;
     const job = await getJobById(id);
 
@@ -29,6 +35,11 @@ export async function PATCH(
   context: RouteParams
 ) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized. Please sign in." }, { status: 401 });
+    }
+
     const { id } = await context.params;
     const body = await request.json();
 
@@ -49,6 +60,11 @@ export async function DELETE(
   context: RouteParams
 ) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized. Please sign in." }, { status: 401 });
+    }
+
     const { id } = await context.params;
     const success = await deleteJob(id);
 

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth";
 import JobForm from "@/components/JobForm";
 import {
   ChevronRight,
@@ -7,7 +9,14 @@ import {
   Target,
 } from "lucide-react";
 
-export default function NewJobPage() {
+export const dynamic = "force-dynamic";
+
+export default async function NewJobPage() {
+  const user = await getCurrentUser();
+  if (!user) {
+    redirect("/login");
+  }
+
   return (
     <main className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8 sm:py-10 animate-fade-in">
       {/* Breadcrumb Navigation */}

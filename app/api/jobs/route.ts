@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
 import {
   getAllJobs,
   createJob,
@@ -11,12 +12,20 @@ import {
 
 export async function GET(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized. Please sign in to view applications." },
+        { status: 401 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status");
     const query = searchParams.get("q")?.toLowerCase();
     const sort = searchParams.get("sort") || "date-desc";
 
-    let jobs = await getAllJobs();
+    let jobs = await getAllJobs(user.id);
 
     if (status && status !== "All") {
       jobs = jobs.filter((job) => job.status.toLowerCase() === status.toLowerCase());
@@ -49,6 +58,14 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized. Please sign in to add applications." },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
 
     if (body.action === "reset") {
@@ -81,9 +98,10 @@ export async function POST(request: NextRequest) {
       priority: body.priority || "Medium",
     };
 
-    const newJob = await createJob(jobData);
+    const newJob = await createJob(jobData, user.id);
     return NextResponse.json(newJob, { status: 201 });
   } catch (error) {
     console.error("Error creating job:", error);
+    return NextResponse.json({ error: "Failed to create application" }, { status: 500 });
   }
 }
