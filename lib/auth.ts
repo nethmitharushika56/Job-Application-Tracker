@@ -280,3 +280,120 @@ export async function getCurrentUser(): Promise<User | null> {
     return null;
   }
 }
+
+// ==================== Password Reset Management ====================
+
+interface ResetCodeEntry {
+  email: string;
+  code: string;
+  expiresAt: number;
+}
+
+const globalForResetCodes = globalThis as unknown as {
+  resetCodes: Map<string, ResetCodeEntry> | undefined;
+};
+
+if (!globalForResetCodes.resetCodes) {
+  globalForResetCodes.resetCodes = new Map<string, ResetCodeEntry>();
+}
+
+const resetCodesMap = globalForResetCodes.resetCodes;
+
+export async function createPasswordResetCode(
+  email: string
+): Promise<{ code: string; user: User }> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const userRecord = await findUserByEmail(normalizedEmail);
+  if (!userRecord) {
+    throw new Error("No account found with this email address.");
+  }
+
+  // Generate a random 6-digit verification code
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const expiresAt = Date.now() + 15 * 60 * 1000; // 15 minutes validity
+
+  resetCodesMap.set(normalizedEmail, {
+    email: normalizedEmail,
+    code,
+    expiresAt,
+  });
+
+  return {
+    code,
+    user: {
+      id: userRecord.id,
+      name: userRecord.name,
+      email: userRecord.email,
+      createdAt: userRecord.createdAt,
+    },
+  };
+}
+
+export async function resetUserPassword(
+  email: string,
+  code: string,
+  newPasswordPlain: string
+): Promise<boolean> {
+  const normalizedEmail = email.trim().toLowerCase();
+  const trimmedCode = code.trim();
+
+  if (!newPasswordPlain || newPasswordPlain.length < 6) {
+    throw new Error("Password must be at least 6 characters long.");
+  }
+
+  const entry = resetCodesMap.get(normalizedEmail);
+  if (!entry) {
+    throw new Error("No active password reset request found. Please request a new code.");
+  }
+
+  if (Date.now() > entry.expiresAt) {
+    resetCodesMap.delete(normalizedEmail);
+    throw new Error("The reset code has expired. Please request a new one.");
+  }
+
+  if (entry.code !== trimmedCode) {
+    throw new Error("Invalid verification code. Please check and try again.");
+  }
+
+  const userRecord = await findUserByEmail(normalizedEmail);
+  if (!userRecord) {
+    throw new Error("User account not found.");
+  }
+
+  const newHash = hashPassword(newPasswordPlain);
+  const now = new Date().toISOString();
+
+  // Update in database if ready
+  const isDbReady = await initUserTable();
+  if (isDbReady && pool) {
+    try {
+      await pool.query(
+        `UPDATE users SET password_hash = $1, updated_at = $2 WHERE LOWER(email) = $3`,
+        [newHash, now, normalizedEmail]
+      );
+    } catch (err: any) {
+      console.error("Error updating user password in DB:", err.message);
+    }
+  }
+
+  // Update in safe storage
+  const localUsers = await getLocalUsers();
+  const index = localUsers.findIndex((u) => u.email.toLowerCase() === normalizedEmail);
+  if (index >= 0) {
+    localUsers[index].passwordHash = newHash;
+    localUsers[index].updatedAt = now;
+  } else {
+    localUsers.push({
+      ...userRecord,
+      passwordHash: newHash,
+      updatedAt: now,
+    });
+  }
+  await writeStorageFile("users.json", localUsers);
+
+  // Invalidate code after successful reset
+  resetCodesMap.delete(normalizedEmail);
+
+  return true;
+}
+

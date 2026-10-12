@@ -15,9 +15,12 @@ export function middleware(request: NextRequest) {
   }
 
   const sessionCookie = request.cookies.get("careerpulse_session")?.value;
-  const isAuthPage = pathname === "/login" || pathname === "/signup";
+  const isAuthPage =
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/forgot-password";
 
-  // 2. If logged in and trying to visit login/signup -> redirect to dashboard (/)
+  // 2. If logged in and trying to visit login/signup/forgot-password -> redirect to dashboard (/)
   if (isAuthPage) {
     if (sessionCookie) {
       return NextResponse.redirect(new URL("/", request.url));
