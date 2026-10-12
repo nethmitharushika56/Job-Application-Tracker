@@ -1,6 +1,5 @@
-import fs from "fs/promises";
-import path from "path";
-import { pool } from "./db";
+import { pool, isDbConfigured } from "./db";
+import { readStorageFile, writeStorageFile } from "./storage";
 
 export type JobStatus =
   | "Wishlist"
@@ -37,39 +36,11 @@ export interface JobApplication {
   updatedAt: string;
 }
 
-const DATA_DIR = path.join(process.cwd(), "data");
-const DATA_FILE = path.join(DATA_DIR, "jobs.json");
-
 const SEED_JOBS: JobApplication[] = [];
 
-
-// Local file helpers (fallback / backup)
-async function ensureDataFile(): Promise<void> {
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    try {
-      await fs.access(DATA_FILE);
-    } catch {
-      await fs.writeFile(DATA_FILE, JSON.stringify(SEED_JOBS, null, 2), "utf-8");
-    }
-  } catch (error) {
-    console.error("Failed to initialize jobs data file:", error);
-  }
-}
-
+// Storage helpers (fallback / backup)
 async function getLocalJobs(): Promise<JobApplication[]> {
-  await ensureDataFile();
-  try {
-    const data = await fs.readFile(DATA_FILE, "utf-8");
-    const parsed = JSON.parse(data);
-    if (Array.isArray(parsed)) {
-      return parsed;
-    }
-    return SEED_JOBS;
-  } catch (error) {
-    console.error("Error reading local jobs:", error);
-    return SEED_JOBS;
-  }
+  return await readStorageFile<JobApplication[]>("jobs.json", SEED_JOBS);
 }
 
 async function saveJobLocally(job: JobApplication): Promise<void> {
@@ -81,7 +52,7 @@ async function saveJobLocally(job: JobApplication): Promise<void> {
     } else {
       jobs.unshift(job);
     }
-    await fs.writeFile(DATA_FILE, JSON.stringify(jobs, null, 2), "utf-8");
+    await writeStorageFile("jobs.json", jobs);
   } catch (err) {
     console.error("Failed to save job locally:", err);
   }
@@ -102,7 +73,7 @@ async function updateJobLocally(
       updatedAt: new Date().toISOString(),
     };
     jobs[index] = updated;
-    await fs.writeFile(DATA_FILE, JSON.stringify(jobs, null, 2), "utf-8");
+    await writeStorageFile("jobs.json", jobs);
     return updated;
   } catch (err) {
     console.error("Failed to update job locally:", err);
@@ -115,7 +86,7 @@ async function deleteJobLocally(id: string): Promise<boolean> {
     const jobs = await getLocalJobs();
     const filtered = jobs.filter((j) => j.id !== id);
     if (filtered.length === jobs.length) return false;
-    await fs.writeFile(DATA_FILE, JSON.stringify(filtered, null, 2), "utf-8");
+    await writeStorageFile("jobs.json", filtered);
     return true;
   } catch (err) {
     console.error("Failed to delete job locally:", err);
@@ -124,8 +95,7 @@ async function deleteJobLocally(id: string): Promise<boolean> {
 }
 
 async function resetLocalJobs(): Promise<JobApplication[]> {
-  await ensureDataFile();
-  await fs.writeFile(DATA_FILE, JSON.stringify(SEED_JOBS, null, 2), "utf-8");
+  await writeStorageFile("jobs.json", SEED_JOBS);
   return SEED_JOBS;
 }
 
@@ -133,13 +103,14 @@ async function resetLocalJobs(): Promise<JobApplication[]> {
 let dbInitialized = false;
 
 async function initDatabase(): Promise<boolean> {
-  if (!process.env.DATABASE_URL) return false;
+  if (!pool || !isDbConfigured) return false;
   if (dbInitialized) return true;
 
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS jobs (
         id TEXT PRIMARY KEY,
+        user_id TEXT,
         company TEXT NOT NULL,
         position TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'Applied',
@@ -148,6 +119,7 @@ async function initDatabase(): Promise<boolean> {
         location TEXT,
         salary TEXT,
         applied_date TEXT,
+        application_date TEXT,
         follow_up_date TEXT,
         interview_date TEXT,
         job_url TEXT,
@@ -162,7 +134,7 @@ async function initDatabase(): Promise<boolean> {
     dbInitialized = true;
     return true;
   } catch (err: any) {
-    console.warn("Database initialization failed (using local JSON storage fallback):", err.message);
+    console.warn("Database initialization failed (using storage fallback):", err.message);
     return false;
   }
 }
@@ -198,6 +170,7 @@ function rowToJob(row: any): JobApplication {
 }
 
 async function insertJobIntoDb(job: JobApplication): Promise<void> {
+  if (!pool) return;
   const appDate = job.appliedDate || new Date().toISOString().split("T")[0];
   await pool.query(
     `INSERT INTO jobs (
@@ -253,7 +226,7 @@ async function insertJobIntoDb(job: JobApplication): Promise<void> {
 // Exported high-level CRUD functions
 export async function getAllJobs(userId?: string): Promise<JobApplication[]> {
   const isDbReady = await initDatabase();
-  if (isDbReady) {
+  if (isDbReady && pool) {
     try {
       let query = `SELECT * FROM jobs`;
       const params: any[] = [];
@@ -278,7 +251,7 @@ export async function getAllJobs(userId?: string): Promise<JobApplication[]> {
 
 export async function getJobById(id: string): Promise<JobApplication | null> {
   const isDbReady = await initDatabase();
-  if (isDbReady) {
+  if (isDbReady && pool) {
     try {
       const result = await pool.query(`SELECT * FROM jobs WHERE id = $1`, [id]);
       if (result.rows.length > 0) {
@@ -308,7 +281,7 @@ export async function createJob(
   };
 
   const isDbReady = await initDatabase();
-  if (isDbReady) {
+  if (isDbReady && pool) {
     try {
       await insertJobIntoDb(newJob);
       saveJobLocally(newJob).catch(() => {});
@@ -327,7 +300,7 @@ export async function updateJob(
   updates: Partial<Omit<JobApplication, "id" | "createdAt">>
 ): Promise<JobApplication | null> {
   const isDbReady = await initDatabase();
-  if (isDbReady) {
+  if (isDbReady && pool) {
     try {
       const existing = await getJobById(id);
       if (!existing) return null;
@@ -394,7 +367,7 @@ export async function updateJob(
 
 export async function deleteJob(id: string): Promise<boolean> {
   const isDbReady = await initDatabase();
-  if (isDbReady) {
+  if (isDbReady && pool) {
     try {
       const res = await pool.query(`DELETE FROM jobs WHERE id = $1`, [id]);
       deleteJobLocally(id).catch(() => {});
@@ -409,7 +382,7 @@ export async function deleteJob(id: string): Promise<boolean> {
 
 export async function resetToSeedJobs(): Promise<JobApplication[]> {
   const isDbReady = await initDatabase();
-  if (isDbReady) {
+  if (isDbReady && pool) {
     try {
       await pool.query(`DELETE FROM jobs`);
       resetLocalJobs().catch(() => {});

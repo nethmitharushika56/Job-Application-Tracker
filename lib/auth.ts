@@ -1,8 +1,7 @@
 import crypto from "crypto";
 import { cookies } from "next/headers";
-import fs from "fs/promises";
-import path from "path";
-import { pool } from "./db";
+import { pool, isDbConfigured } from "./db";
+import { readStorageFile, writeStorageFile } from "./storage";
 
 export interface User {
   id: string;
@@ -19,9 +18,6 @@ export interface UserRecord extends User {
 export const SESSION_COOKIE_NAME = "careerpulse_session";
 const SESSION_SECRET = process.env.AUTH_SECRET || "careerpulse-secure-key-2026-auth-session";
 const SESSION_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
-
-const DATA_DIR = path.join(process.cwd(), "data");
-const USERS_FILE = path.join(DATA_DIR, "users.json");
 
 // ==================== Cryptography Helpers ====================
 
@@ -99,36 +95,21 @@ export function verifySessionToken(
   }
 }
 
-// ==================== Local Fallback Storage ====================
-
-async function ensureUsersFile(): Promise<void> {
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    try {
-      await fs.access(USERS_FILE);
-    } catch {
-      await fs.writeFile(USERS_FILE, JSON.stringify([], null, 2), "utf-8");
-    }
-  } catch (error) {
-    console.error("Failed to initialize users data file:", error);
-  }
-}
+// ==================== Storage Helpers ====================
 
 async function getLocalUsers(): Promise<UserRecord[]> {
-  await ensureUsersFile();
-  try {
-    const data = await fs.readFile(USERS_FILE, "utf-8");
-    const parsed = JSON.parse(data);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  return await readStorageFile<UserRecord[]>("users.json", []);
 }
 
 async function saveUserLocally(user: UserRecord): Promise<void> {
   const users = await getLocalUsers();
-  users.push(user);
-  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2), "utf-8");
+  const index = users.findIndex((u) => u.id === user.id);
+  if (index >= 0) {
+    users[index] = user;
+  } else {
+    users.push(user);
+  }
+  await writeStorageFile("users.json", users);
 }
 
 // ==================== Database User Management ====================
@@ -136,7 +117,7 @@ async function saveUserLocally(user: UserRecord): Promise<void> {
 let usersTableInitialized = false;
 
 export async function initUserTable(): Promise<boolean> {
-  if (!process.env.DATABASE_URL) return false;
+  if (!pool || !isDbConfigured) return false;
   if (usersTableInitialized) return true;
 
   try {
@@ -153,7 +134,7 @@ export async function initUserTable(): Promise<boolean> {
     usersTableInitialized = true;
     return true;
   } catch (err: any) {
-    console.warn("Users table init failed (falling back to local):", err.message);
+    console.warn("Users table init failed (falling back to storage):", err.message);
     return false;
   }
 }
@@ -162,7 +143,7 @@ export async function findUserByEmail(email: string): Promise<UserRecord | null>
   const isDbReady = await initUserTable();
   const normalizedEmail = email.trim().toLowerCase();
 
-  if (isDbReady) {
+  if (isDbReady && pool) {
     try {
       const res = await pool.query(
         `SELECT id, name, email, password_hash, created_at, updated_at FROM users WHERE LOWER(email) = $1 LIMIT 1`,
@@ -194,7 +175,7 @@ export async function findUserByEmail(email: string): Promise<UserRecord | null>
 export async function findUserById(id: string): Promise<User | null> {
   const isDbReady = await initUserTable();
 
-  if (isDbReady) {
+  if (isDbReady && pool) {
     try {
       const res = await pool.query(
         `SELECT id, name, email, created_at FROM users WHERE id = $1 LIMIT 1`,
@@ -247,7 +228,7 @@ export async function createUser(
   };
 
   const isDbReady = await initUserTable();
-  if (isDbReady) {
+  if (isDbReady && pool) {
     try {
       await pool.query(
         `INSERT INTO users (id, name, email, password_hash, created_at, updated_at)
